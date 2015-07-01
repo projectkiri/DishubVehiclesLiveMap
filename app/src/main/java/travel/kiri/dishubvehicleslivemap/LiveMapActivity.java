@@ -1,5 +1,6 @@
 package travel.kiri.dishubvehicleslivemap;
 
+import android.app.Activity;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.widget.Toast;
@@ -15,17 +16,21 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import travel.kiri.dishubvehicleslivemap.models.VehicleInfo;
 import travel.kiri.dishubvehicleslivemap.protocols.DataIdRetriever;
 
-public class LiveMapActivity extends FragmentActivity implements DataIdRetriever.DataIdReadyHandler {
+public class LiveMapActivity extends FragmentActivity {
 
     private static final LatLng MAP_CENTER = new LatLng(-6.91474,107.60981);
     private static final int MAP_ZOOM = 12;
+    private static final long UPDATE_INTERVAL = 10000L;
 
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
     private Map<String, Marker> mMarkers;
+    private final Activity activity = this;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -77,31 +82,51 @@ public class LiveMapActivity extends FragmentActivity implements DataIdRetriever
     private void setUpMap() {
         mMap.moveCamera(CameraUpdateFactory.newCameraPosition(CameraPosition.fromLatLngZoom(MAP_CENTER, MAP_ZOOM)));
         mMarkers = new HashMap<>();
-        DataIdRetriever retriever = new DataIdRetriever();
-        retriever.retrieveVehiclesInfo(this);
+        // Trigger the first update
+        new RetrieverTask().run();
+
     }
 
-    @Override
-    public void dataIdReady(List<VehicleInfo> vehicles) {
-        if (mMap == null) {
-            return;
+    private class RetrieverTask extends TimerTask implements DataIdRetriever.DataIdReadyHandler {
+
+        DataIdRetriever retriever = new DataIdRetriever();
+
+        @Override
+        public void run() {
+            retriever.retrieveVehiclesInfo(this);
         }
-        if (vehicles == null) {
-            Toast.makeText(this, "Connection error!", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        for (VehicleInfo vehicle: vehicles) {
-            Marker marker = mMarkers.get(vehicle.getUniqueId());
-            if (marker == null) {
-                MarkerOptions markerOptions = new MarkerOptions();
-                markerOptions.position(new LatLng(vehicle.getLatitude(), vehicle.getLongitude()));
-                markerOptions.title(vehicle.getName());
-                markerOptions.rotation((float) vehicle.getDirection());
-                mMap.addMarker(markerOptions);
-            } else {
-                marker.setPosition(new LatLng(vehicle.getLatitude(), vehicle.getLongitude()));
-                marker.setTitle(vehicle.getName());
-                marker.setRotation((float)vehicle.getDirection());
+
+        @Override
+        public void dataIdReady(List<VehicleInfo> vehicles) {
+            try {
+                // Schedule another before processing.
+                Timer timer = new Timer();
+                timer.schedule(new RetrieverTask(), LiveMapActivity.UPDATE_INTERVAL);
+
+                if (mMap == null) {
+                    return;
+                }
+                if (vehicles == null) {
+                    Toast.makeText(activity, "Connection error!", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                for (VehicleInfo vehicle : vehicles) {
+                    Marker marker = mMarkers.get(vehicle.getUniqueId());
+                    if (marker == null) {
+                        MarkerOptions markerOptions = new MarkerOptions();
+                        markerOptions.position(new LatLng(vehicle.getLatitude(), vehicle.getLongitude()));
+                        markerOptions.title(vehicle.getName());
+                        markerOptions.rotation((float) vehicle.getDirection());
+                        marker = mMap.addMarker(markerOptions);
+                        mMarkers.put(vehicle.getUniqueId(), marker);
+                    } else {
+                        marker.setPosition(new LatLng(vehicle.getLatitude(), vehicle.getLongitude()));
+                        marker.setTitle(vehicle.getName());
+                        marker.setRotation((float) vehicle.getDirection());
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }
     }
