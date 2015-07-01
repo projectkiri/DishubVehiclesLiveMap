@@ -4,6 +4,11 @@ import android.os.AsyncTask;
 import android.util.Xml;
 
 import org.apache.http.client.methods.HttpGet;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.xml.sax.SAXException;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 
@@ -16,6 +21,10 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 
 import travel.kiri.dishubvehicleslivemap.models.VehicleInfo;
 
@@ -44,24 +53,22 @@ public class DataIdRetriever {
                     connection.setRequestMethod("GET");
                     connection.connect();
                     inputStream = connection.getInputStream();
-                    reader = new BufferedReader(new InputStreamReader(inputStream));
-                    XmlPullParser xmlParser = Xml.newPullParser();
-                    xmlParser.setInput(reader);
-                    xmlParser.nextTag();
-                    xmlParser.require(XmlPullParser.START_TAG, null, "ArrayOfDeviceLastLocation");
-                    while (xmlParser.next() != XmlPullParser.END_TAG) {
+
+                    DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+                    Document document = builder.parse(inputStream);
+                    Element root = document.getDocumentElement();
+                    if (!root.getTagName().equals("ArrayOfDeviceLastLocation")) {
+                        throw new IOException("Root element is not ArrayOfDeviceLastLocation");
+                    }
+                    NodeList nodes = root.getElementsByTagName("DeviceLastLocation");
+                    for (int i = 0; i < nodes.getLength(); i++) {
+                        Node node = nodes.item(i);
+                        NodeList properties = node.getChildNodes();
                         VehicleInfo vehicleInfo = new VehicleInfo();
-                        xmlParser.next();
-                        xmlParser.require(XmlPullParser.START_TAG, null, "DeviceLastLocation");
-                        while (xmlParser.next() != XmlPullParser.END_TAG) {
-                            xmlParser.next(); // start tag
-                            while (xmlParser.isEmptyElementTag()) {
-                                // skip empty tags
-                                xmlParser.next();
-                            }
-                            String tagName = xmlParser.getName();
-                            xmlParser.next(); // read value
-                            String text = xmlParser.getText();
+                        for (int j = 0; j < properties.getLength(); j++) {
+                            Node property = properties.item(j);
+                            String tagName = property.getNodeName();
+                            String text = property.getTextContent();
                             switch (tagName) {
                                 case "TE_UID":
                                     vehicleInfo.setUniqueId(text);
@@ -82,16 +89,19 @@ public class DataIdRetriever {
                                     vehicleInfo.setDirection(Double.parseDouble(text));
                                     break;
                             }
-                            xmlParser.next(); // skip end tag
                         }
-                        vehicleInfoList.add(vehicleInfo);
+                        if (vehicleInfo.isGpsActive()) {
+                            vehicleInfoList.add(vehicleInfo);
+                        }
                     }
                     return vehicleInfoList;
                 } catch (MalformedURLException mue) {
                     throw new RuntimeException("Internal error: " + mue);
                 } catch (IOException e) {
                     return null;
-                } catch (XmlPullParserException e) {
+                } catch (ParserConfigurationException e) {
+                    return null;
+                } catch (SAXException e) {
                     return null;
                 } finally {
                     try {
