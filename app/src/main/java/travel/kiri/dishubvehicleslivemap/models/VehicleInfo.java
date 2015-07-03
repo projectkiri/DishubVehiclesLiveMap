@@ -1,13 +1,12 @@
 package travel.kiri.dishubvehicleslivemap.models;
 
-import com.google.android.gms.maps.model.LatLng;
-
 /**
  * Created by PascalAlfadian on 30/6/2015.
  */
 public class VehicleInfo {
     private String uniqueId;
     private String name;
+    private String iconName;
     private double latitude;
     private double longitude;
     private double direction;
@@ -60,4 +59,13 @@ public class VehicleInfo {
     public void setDirection(double direction) {
         this.direction = direction;
     }
+
+    public String getIconName() {
+        return iconName;
+    }
+
+    public void setIconName(String iconName) {
+        this.iconName = iconName;
+    }
+
 }

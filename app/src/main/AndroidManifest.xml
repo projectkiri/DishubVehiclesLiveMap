@@ -26,12 +26,13 @@
             android:value="@string/google_maps_key" />
 
         <activity
-            android:name=".LiveMapActivity"
-            android:label="@string/title_activity_live_map" >
+            android:name="travel.kiri.dishubvehicleslivemap.LiveMapActivity"
+            android:label="@string/title_activity_live_map"
+            android:keepScreenOn="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
+                <iconName android:name="android.intent.iconName.LAUNCHER" />
             </intent-filter>
         </activity>
     </application>

@@ -1,21 +1,16 @@
 package travel.kiri.dishubvehicleslivemap.protocols;
 
 import android.os.AsyncTask;
-import android.util.Xml;
 
-import org.apache.http.client.methods.HttpGet;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -31,14 +26,10 @@ import travel.kiri.dishubvehicleslivemap.models.VehicleInfo;
 /**
  * Created by PascalAlfadian on 30/6/2015.
  */
-public class DataIdRetriever {
+public class BandungDataRetriever {
     public static final String SERVICE_URL = "http://id-gpstracker.com/webservice/tracknow.asmx/getDeviceListWithLocation?APIKey=2243a9fcdca0f45232fb0f94d99c5a2d";
 
-    public interface DataIdReadyHandler {
-        public void dataIdReady(List<VehicleInfo> vehicles);
-    }
-
-    public void retrieveVehiclesInfo(final DataIdReadyHandler handler) {
+    public void retrieveVehiclesInfo(final DataReadyHandler handler) {
         new AsyncTask<Object, Object, List<VehicleInfo>>() {
 
             @Override
@@ -76,6 +67,9 @@ public class DataIdRetriever {
                                 case "TE_NAME":
                                     vehicleInfo.setName(text);
                                     break;
+                                case "TE_OWNER":
+                                    vehicleInfo.setIconName(ownerToIcon(text));
+                                    break;
                                 case "GPS_Longitude":
                                     vehicleInfo.setLongitude(Double.parseDouble(text));
                                     break;
@@ -103,7 +97,9 @@ public class DataIdRetriever {
                     return null;
                 } catch (SAXException e) {
                     return null;
-                } finally {
+                } catch (Exception e) {
+                    return null;
+                } finally{
                     try {
                         if (reader != null) {
                             reader.close();
@@ -122,6 +118,27 @@ public class DataIdRetriever {
                 handler.dataIdReady(result);
             }
         }.execute();
+    }
 
+    private static String ownerToIcon(String owner) {
+        if (owner == null) {
+            return null;
+        }
+        switch (owner) {
+            case "Dinas Kesehatan":
+                return "ambulance";
+            case "DBMP":
+                return null;
+            case "Dinas Perhubungan":
+                return "bus";
+            case "Pemadam Kebakaran":
+                return "firetruck";
+            case "Satpol PP":
+                return null;
+            case "PD Kebersihan":
+                return null;
+            default:
+                return null;
+        }
     }
 }

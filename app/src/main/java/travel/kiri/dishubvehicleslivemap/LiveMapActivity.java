@@ -1,5 +1,6 @@
 package travel.kiri.dishubvehicleslivemap;
 
+import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
@@ -8,6 +9,7 @@ import android.widget.Toast;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
@@ -20,7 +22,8 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 import travel.kiri.dishubvehicleslivemap.models.VehicleInfo;
-import travel.kiri.dishubvehicleslivemap.protocols.DataIdRetriever;
+import travel.kiri.dishubvehicleslivemap.protocols.BandungDataRetriever;
+import travel.kiri.dishubvehicleslivemap.protocols.DataReadyHandler;
 
 public class LiveMapActivity extends FragmentActivity {
 
@@ -81,15 +84,16 @@ public class LiveMapActivity extends FragmentActivity {
      */
     private void setUpMap() {
         mMap.moveCamera(CameraUpdateFactory.newCameraPosition(CameraPosition.fromLatLngZoom(MAP_CENTER, MAP_ZOOM)));
+        mMap.setMyLocationEnabled(true);
         mMarkers = new HashMap<>();
         // Trigger the first update
         new RetrieverTask().run();
 
     }
 
-    private class RetrieverTask extends TimerTask implements DataIdRetriever.DataIdReadyHandler {
+    private class RetrieverTask extends TimerTask implements DataReadyHandler {
 
-        DataIdRetriever retriever = new DataIdRetriever();
+        BandungDataRetriever retriever = new BandungDataRetriever();
 
         @Override
         public void run() {
@@ -111,18 +115,52 @@ public class LiveMapActivity extends FragmentActivity {
                     return;
                 }
                 for (VehicleInfo vehicle : vehicles) {
-                    Marker marker = mMarkers.get(vehicle.getUniqueId());
+                    final Marker marker = mMarkers.get(vehicle.getUniqueId());
                     if (marker == null) {
                         MarkerOptions markerOptions = new MarkerOptions();
                         markerOptions.position(new LatLng(vehicle.getLatitude(), vehicle.getLongitude()));
                         markerOptions.title(vehicle.getName());
-                        markerOptions.rotation((float) vehicle.getDirection());
-                        marker = mMap.addMarker(markerOptions);
-                        mMarkers.put(vehicle.getUniqueId(), marker);
+                        markerOptions.rotation((float) vehicle.getDirection() + 90);
+                        int resourceId = R.mipmap.ic_car;
+                        switch (vehicle.getIconName()) {
+                            case "ambulance":
+                                resourceId = R.mipmap.ic_ambulance;
+                                break;
+                            case "bus":
+                                resourceId = R.mipmap.ic_bus;
+                                break;
+                            case "firetruck":
+                                resourceId = R.mipmap.ic_firetruck;
+                                break;
+                        }
+                        markerOptions.icon(BitmapDescriptorFactory.fromResource(resourceId));
+                        markerOptions.anchor(0.5f, 0.5f);
+                        Marker newMarker = mMap.addMarker(markerOptions);
+                        mMarkers.put(vehicle.getUniqueId(), newMarker);
                     } else {
-                        marker.setPosition(new LatLng(vehicle.getLatitude(), vehicle.getLongitude()));
                         marker.setTitle(vehicle.getName());
-                        marker.setRotation((float) vehicle.getDirection());
+                        // Animate marker
+                        final LatLng startPosition = marker.getPosition();
+                        final LatLng finalPosition = new LatLng(vehicle.getLatitude(), vehicle.getLongitude());
+                        final float startRotation = marker.getRotation();
+                        final float finalRotation = (float) vehicle.getDirection() + 90;
+                        ValueAnimator animator = new ValueAnimator();
+                        animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                            @Override
+                            public void onAnimationUpdate(ValueAnimator animation) {
+                                float v = animation.getAnimatedFraction();
+                                LatLng newPosition = new LatLng(
+                                        (1 - v) * startPosition.latitude + v * finalPosition.latitude,
+                                        (1 - v) * startPosition.longitude + v * finalPosition.longitude
+                                );
+                                marker.setPosition(newPosition);
+                                float newRotation = (1 - v) * startRotation + v * finalRotation;
+                                marker.setRotation(newRotation);
+                            }
+                        });
+                        animator.setFloatValues(0, 1);
+                        animator.setDuration(UPDATE_INTERVAL);
+                        animator.start();
                     }
                 }
             } catch (Exception e) {
