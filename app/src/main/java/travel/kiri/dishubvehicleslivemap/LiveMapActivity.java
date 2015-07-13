@@ -2,12 +2,12 @@ package travel.kiri.dishubvehicleslivemap;
 
 import android.animation.ValueAnimator;
 import android.app.Activity;
-import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.widget.Toast;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.MapFragment;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.CameraPosition;
@@ -25,7 +25,7 @@ import travel.kiri.dishubvehicleslivemap.models.VehicleInfo;
 import travel.kiri.dishubvehicleslivemap.protocols.BandungDataRetriever;
 import travel.kiri.dishubvehicleslivemap.protocols.DataReadyHandler;
 
-public class LiveMapActivity extends FragmentActivity {
+public class LiveMapActivity extends Activity {
 
     private static final LatLng MAP_CENTER = new LatLng(-6.91474,107.60981);
     private static final int MAP_ZOOM = 12;
@@ -67,7 +67,7 @@ public class LiveMapActivity extends FragmentActivity {
         // Do a null check to confirm that we have not already instantiated the map.
         if (mMap == null) {
             // Try to obtain the map from the SupportMapFragment.
-            mMap = ((SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map))
+            mMap = ((MapFragment) getFragmentManager().findFragmentById(R.id.map))
                     .getMap();
             // Check if we were successful in obtaining the map.
             if (mMap != null) {
